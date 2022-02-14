@@ -1,5 +1,8 @@
 # Verbio Speech Center (Go client)
 
+[![Lint](https://github.com/cquintana92/go-verbio-speech-center/actions/workflows/lint.yaml/badge.svg)](https://github.com/cquintana92/go-verbio-speech-center/actions/workflows/lint.yaml)
+
+
 ## How to build
 
 You will need Go installed in your machine in order to build this client.
@@ -31,5 +34,3 @@ $ bin/speech_center -a audios/example.wav -t your.speech-center.token.file --top
 # Grammar recognition
 $ bin/speech_center -a audios/example.wav -t your.speech-center.token.file --grammar path/to/grammar.bnf --language en-US
 ```
-
-

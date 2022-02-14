@@ -1,0 +1,22 @@
+name: lint
+on:
+  pull_request: {}
+  push:
+    branches:
+      - main
+jobs:
+  test:
+    name: lint
+    runs-on: ubuntu-20.04
+    steps:
+      # Setup repo
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.17.5'
+
+      # Check format
+      - run: make check-fmt
+
