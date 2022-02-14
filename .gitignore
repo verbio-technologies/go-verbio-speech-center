@@ -1,0 +1,6 @@
+.idea/
+bin/
+proto/speech_center
+audios/
+grammars/
+*.token
