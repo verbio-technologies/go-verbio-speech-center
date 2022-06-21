@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	BACKEND_URL = "speechcenter.verbio.com:2424"
+	BACKEND_URL = "csr.api.speechcenter.verbio.com"
 )
 
 var opts struct {
