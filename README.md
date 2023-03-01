@@ -1,3 +1,5 @@
+> WARNING: This repository is no longer updated or mantained. Please refer to our [python](https://github.com/verbio-technologies/python-verbio-speech-center) or [c++](https://github.com/verbio-technologies/cpp-verbio-speech-center) alternatives.
+
 # Verbio Speech Center (Go client)
 
 [![Lint](https://github.com/cquintana92/go-verbio-speech-center/actions/workflows/lint.yaml/badge.svg)](https://github.com/cquintana92/go-verbio-speech-center/actions/workflows/lint.yaml)
