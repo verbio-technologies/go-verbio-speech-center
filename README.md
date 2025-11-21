@@ -9,11 +9,20 @@
 
 You will need Go installed in your machine in order to build this client.
 
+You will also need the protobuffer compiler with the go plugin. You can install using:
+```shell
+$sudo apt install -y protobuf-compiler 
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```
+
 For generating the grpc files you can run the following command
 
 ```shell
 $ make grpc
+```
 
+```shell
 # Or if you prefer to avoid installing the grpc dependencies in
 # your system, use this to use a docker container for that
 $ make grpc-docker
