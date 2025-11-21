@@ -1,6 +1,6 @@
 module verbio_speech_center
 
-go 1.17
+go 1.25
 
 require (
 	github.com/jessevdk/go-flags v1.5.0

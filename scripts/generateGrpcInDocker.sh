@@ -5,7 +5,7 @@ set -euxo pipefail
 SCRIPT_PATH=$(readlink -f $0)
 REPO_ROOT=$(echo "$SCRIPT_PATH" | sed 's|scripts/.*||g')
 
-IMAGE="golang:1.17.5-buster"
+IMAGE="golang:1.25"
 WD="/code"
 CURRENT_UID=$(id -u $(whoami))
 CURRENT_GID=$(id -g $(whoami))
