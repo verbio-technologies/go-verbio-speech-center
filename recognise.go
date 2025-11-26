@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 	"verbio_speech_center/log"
 	"verbio_speech_center/proto/speech_center"
 
@@ -22,8 +23,8 @@ func (r *Recogniser) RecogniseWithGrammar(audioFile string, grammarFile string, 
 			return "", errors.New(fmt.Sprintf("error loading grammar: %+v", err))
 		}
 
-		initial := generateGrammarRequest(grammar, language)
-		return r.performRecognition(audioFile, initial)
+		configuration := generateGrammarRequest(grammar, language)
+		return r.performRecognition(audioFile, configuration)
 
 	} else {
 		return "", errors.New("received an empty grammarFile path")
@@ -32,11 +33,11 @@ func (r *Recogniser) RecogniseWithGrammar(audioFile string, grammarFile string, 
 
 func (r *Recogniser) RecogniseWithTopic(audioFile string, topic string, language string) (string, error) {
 	log.Logger.Infof("Performing Topic recognition [audioFile=%s] [topic=%s] [language=%s]", audioFile, topic, language)
-	initial, err := generateTopicRequest(topic, language)
+	configuration, err := generateTopicRequest(topic, language)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error creating topic request: %+v", err))
 	}
-	return r.performRecognition(audioFile, initial)
+	return r.performRecognition(audioFile, configuration)
 }
 
 type recogResult struct {
@@ -44,71 +45,128 @@ type recogResult struct {
 	err         error
 }
 
-func (r *Recogniser) performRecognition(audioFile string, initial *speech_center.RecognitionStreamingRequest) (string, error) {
+func (r *Recogniser) performRecognition(audioFile string, configuration *speech_center.RecognitionStreamingRequest) (string, error) {
 	audio, err := loadAudio(audioFile)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error loading audio file %+v", err))
 	}
 
-	streamClient, err := r.client.StreamingRecognize(context.Background(), grpc.WaitForReady(true))
+	r.streamClient, err = r.client.StreamingRecognize(context.Background(), grpc.WaitForReady(true))
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error obtaining streaming client: %+v", err))
 	}
 
 	c := make(chan recogResult)
 	go func() {
-		recog := make([]string, 0)
-		for {
-			resp := &speech_center.RecognitionStreamingResponse{}
-			log.Logger.Debugf("Waiting for response")
-			err := streamClient.RecvMsg(resp)
-			if err != nil {
-				if err == io.EOF {
-					log.Logger.Debugf("Got EOF")
-					c <- recogResult{recognition: strings.Join(recog, " "), err: nil}
-					break
-				} else {
-					c <- recogResult{recognition: "", err: err}
-					break
-				}
+		c = r.collectResponses(c)
+	}()
+
+	if err = r.sendAudio(err, configuration, audio); err != nil {
+		return "", err
+	}
+
+	log.Logger.Info("Waiting for recognition to finish")
+	recog := <-c
+	if recog.err != nil {
+		return "", errors.New(fmt.Sprintf("got error during recognition: %+v", recog.err))
+	}
+
+	return recog.recognition, nil
+}
+
+func (r *Recogniser) collectResponses(c chan recogResult) chan recogResult {
+	recog := make([]string, 0)
+	log.Logger.Debugf("> Waiting for responses ...")
+	totalAudioLengthInMs := float32(0)
+	for {
+		resp := &speech_center.RecognitionStreamingResponse{}
+		err := r.streamClient.RecvMsg(resp)
+		if err != nil {
+			if err == io.EOF {
+				log.Logger.Debugf("Got EOF")
+				c <- recogResult{recognition: strings.Join(recog, " "), err: nil}
+				break
 			} else {
-				// Check for errors in response
-				if resp.GetError() != nil {
-					errMsg := fmt.Sprintf("recognition error: %s (domain: %s)", resp.GetError().Reason, resp.GetError().Domain)
-					c <- recogResult{recognition: "", err: errors.New(errMsg)}
-					break
-				}
-				// Extract transcript from result
-				if result := resp.GetResult(); result != nil && len(result.Alternatives) > 0 {
-					transcript := result.Alternatives[0].Transcript
-					log.Logger.Debugf("Got partial recog: %s (is_final: %v)", transcript, result.IsFinal)
-					if result.IsFinal {
-						recog = append(recog, transcript)
-					}
+				log.Logger.Debugf("Got result")
+				c <- recogResult{recognition: "", err: err}
+				break
+			}
+		} else {
+			// Check for errors in response
+			if resp.GetError() != nil {
+				errMsg := fmt.Sprintf("recognition error: %s (domain: %s)", resp.GetError().Reason, resp.GetError().Domain)
+				c <- recogResult{recognition: "", err: errors.New(errMsg)}
+				break
+			}
+			// Extract transcript from result
+			if result := resp.GetResult(); result != nil && len(result.Alternatives) > 0 {
+				log.Logger.Debugf("Got partial recog: %s (is_final: %v) (silence: %d ms)",
+					result.Alternatives[0].Transcript, result.IsFinal, r.calculateEndOfUtteranceSilence(result, totalAudioLengthInMs))
+				if result.IsFinal {
+					recog = append(recog, result.Alternatives[0].Transcript)
+					totalAudioLengthInMs += result.Duration
 				}
 			}
 		}
-	}()
-
-	log.Logger.Info("Sending initial request")
-	err = streamClient.Send(initial)
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("error sending initial request: %+v", err))
 	}
-	log.Logger.Debug("Sent initial request")
+	log.Logger.Debugf("< all responses recevied")
+	return c
+}
 
-	log.Logger.Info("Sending audio request")
-	audioRequest := &speech_center.RecognitionStreamingRequest{
-		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Audio{
-			Audio: audio,
-		},
+func (r *Recogniser) calculateEndOfUtteranceSilence(result *speech_center.RecognitionResult, totalAudioLengthInMs float32) int32 {
+	words := result.Alternatives[0].Words
+	finalSilenceInMs := int32(0)
+	if len(words) > 0 {
+		finalSilenceInMs = int32((totalAudioLengthInMs + result.Duration - words[len(words)-1].EndTime) * 1000)
 	}
-	err = streamClient.Send(audioRequest)
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("error sending audio request: %+v", err))
-	}
-	log.Logger.Debug("Sent audio request")
+	return finalSilenceInMs
+}
 
+func (r *Recogniser) sendAudio(err error, configuration *speech_center.RecognitionStreamingRequest, audio []byte) error {
+	log.Logger.Info("Sending configuration request")
+	if err = r.streamClient.Send(configuration); err != nil {
+		return errors.New(fmt.Sprintf("error sending configuration request: %+v", err))
+	}
+
+	if err = r.sendAudioStream(audio); err != nil {
+		return err
+	}
+
+	if err = r.streamClient.CloseSend(); err != nil {
+		return errors.New(fmt.Sprintf("error closing send: %+v", err))
+	}
+	return nil
+}
+
+func (r *Recogniser) sendAudioStream(audio []byte) error {
+	log.Logger.Info("Sending audio stream.")
+	if err := r.sendAudioChunks(audio); err != nil {
+		return errors.New(fmt.Sprintf("error sending Audio chunks: %+v", err))
+	}
+	if err := r.sendEndOfStream(); err != nil {
+		return errors.New(fmt.Sprintf("error sending END_OF_STREAM event: %+v", err))
+	}
+	return nil
+}
+
+func (r *Recogniser) sendAudioChunks(audio []byte) error {
+	const chunkSize = 800
+	for i := 0; i < len(audio); i += chunkSize {
+		end := i + chunkSize
+		if end > len(audio) {
+			end = len(audio)
+		}
+
+		audioChunk := audio[i:end]
+		err := r.SendAudioRequest(audioChunk)
+		if err != nil {
+			return errors.New(fmt.Sprintf("error sending audio chunk: %+v", err))
+		}
+	}
+	return nil
+}
+
+func (r *Recogniser) sendEndOfStream() error {
 	// Send END_OF_STREAM event
 	log.Logger.Info("Sending END_OF_STREAM event")
 	endOfStreamRequest := &speech_center.RecognitionStreamingRequest{
@@ -118,24 +176,22 @@ func (r *Recogniser) performRecognition(audioFile string, initial *speech_center
 			},
 		},
 	}
-	err = streamClient.Send(endOfStreamRequest)
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("error sending END_OF_STREAM event: %+v", err))
-	}
-	log.Logger.Debug("Sent END_OF_STREAM event")
+	return r.streamClient.Send(endOfStreamRequest)
+}
 
-	err = streamClient.CloseSend()
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("error closing send: %+v", err))
-	}
-
-	log.Logger.Info("Waiting for recognition result")
-	recog := <-c
-	if recog.err != nil {
-		return "", errors.New(fmt.Sprintf("got error during recognition: %+v", recog.err))
+func (r *Recogniser) SendAudioRequest(audioChunk []byte) error {
+	log.Logger.Tracef("Sending audio chunk (size: %d bytes)", len(audioChunk))
+	const sampleRate = int32(8000)
+	endOfRequest := time.Now().Add(time.Duration(float64(len(audioChunk)) / float64(sampleRate) * float64(time.Second)))
+	audioRequest := &speech_center.RecognitionStreamingRequest{
+		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Audio{
+			Audio: audioChunk,
+		},
 	}
 
-	return recog.recognition, nil
+	log.Logger.Tracef("Audio chunk will be sent until %d", time.Until(endOfRequest).Milliseconds())
+	time.Sleep(time.Until(endOfRequest))
+	return r.streamClient.Send(audioRequest)
 }
 
 func generateGrammarRequest(grammar string, language string) *speech_center.RecognitionStreamingRequest {
