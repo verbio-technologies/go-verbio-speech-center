@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc"
 	"io"
 	"os"
 	"strings"
 	"verbio_speech_center/log"
 	"verbio_speech_center/proto/speech_center"
+
+	"google.golang.org/grpc"
 )
 
 func (r *Recogniser) RecogniseWithGrammar(audioFile string, grammarFile string, language string) (string, error) {
@@ -43,13 +44,13 @@ type recogResult struct {
 	err         error
 }
 
-func (r *Recogniser) performRecognition(audioFile string, initial *speech_center.RecognitionRequest) (string, error) {
+func (r *Recogniser) performRecognition(audioFile string, initial *speech_center.RecognitionStreamingRequest) (string, error) {
 	audio, err := loadAudio(audioFile)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error loading audio file %+v", err))
 	}
 
-	streamClient, err := r.client.RecognizeStream(context.Background(), grpc.WaitForReady(true))
+	streamClient, err := r.client.StreamingRecognize(context.Background(), grpc.WaitForReady(true))
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error obtaining streaming client: %+v", err))
 	}
@@ -58,7 +59,7 @@ func (r *Recogniser) performRecognition(audioFile string, initial *speech_center
 	go func() {
 		recog := make([]string, 0)
 		for {
-			resp := &speech_center.RecognitionResponse{}
+			resp := &speech_center.RecognitionStreamingResponse{}
 			log.Logger.Debugf("Waiting for response")
 			err := streamClient.RecvMsg(resp)
 			if err != nil {
@@ -71,8 +72,20 @@ func (r *Recogniser) performRecognition(audioFile string, initial *speech_center
 					break
 				}
 			} else {
-				log.Logger.Debugf("Got partial recog: %s", resp.Text)
-				recog = append(recog, resp.Text)
+				// Check for errors in response
+				if resp.GetError() != nil {
+					errMsg := fmt.Sprintf("recognition error: %s (domain: %s)", resp.GetError().Reason, resp.GetError().Domain)
+					c <- recogResult{recognition: "", err: errors.New(errMsg)}
+					break
+				}
+				// Extract transcript from result
+				if result := resp.GetResult(); result != nil && len(result.Alternatives) > 0 {
+					transcript := result.Alternatives[0].Transcript
+					log.Logger.Debugf("Got partial recog: %s (is_final: %v)", transcript, result.IsFinal)
+					if result.IsFinal {
+						recog = append(recog, transcript)
+					}
+				}
 			}
 		}
 	}()
@@ -85,8 +98,8 @@ func (r *Recogniser) performRecognition(audioFile string, initial *speech_center
 	log.Logger.Debug("Sent initial request")
 
 	log.Logger.Info("Sending audio request")
-	audioRequest := &speech_center.RecognitionRequest{
-		RequestUnion: &speech_center.RecognitionRequest_Audio{
+	audioRequest := &speech_center.RecognitionStreamingRequest{
+		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Audio{
 			Audio: audio,
 		},
 	}
@@ -95,6 +108,21 @@ func (r *Recogniser) performRecognition(audioFile string, initial *speech_center
 		return "", errors.New(fmt.Sprintf("error sending audio request: %+v", err))
 	}
 	log.Logger.Debug("Sent audio request")
+
+	// Send END_OF_STREAM event
+	log.Logger.Info("Sending END_OF_STREAM event")
+	endOfStreamRequest := &speech_center.RecognitionStreamingRequest{
+		RecognitionRequest: &speech_center.RecognitionStreamingRequest_EventMessage{
+			EventMessage: &speech_center.EventMessage{
+				Event: speech_center.EventMessage_END_OF_STREAM,
+			},
+		},
+	}
+	err = streamClient.Send(endOfStreamRequest)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("error sending END_OF_STREAM event: %+v", err))
+	}
+	log.Logger.Debug("Sent END_OF_STREAM event")
 
 	err = streamClient.CloseSend()
 	if err != nil {
@@ -110,53 +138,71 @@ func (r *Recogniser) performRecognition(audioFile string, initial *speech_center
 	return recog.recognition, nil
 }
 
-func generateGrammarRequest(grammar string, language string) *speech_center.RecognitionRequest {
+func generateGrammarRequest(grammar string, language string) *speech_center.RecognitionStreamingRequest {
+	sampleRate := uint32(8000)
+
 	resource := &speech_center.RecognitionResource{
-		Resource: &speech_center.RecognitionResource_InlineGrammar{
-			InlineGrammar: grammar,
+		Resource: &speech_center.RecognitionResource_Grammar{
+			Grammar: &speech_center.GrammarResource{
+				Grammar: &speech_center.GrammarResource_InlineGrammar{
+					InlineGrammar: grammar,
+				},
+			},
 		},
 	}
 
-	return &speech_center.RecognitionRequest{
-		RequestUnion: &speech_center.RecognitionRequest_Init{
-			Init: &speech_center.RecognitionInit{
-				Parameters: &speech_center.RecognitionParameters{
-					Language: language,
+	config := &speech_center.RecognitionConfig{
+		Parameters: &speech_center.RecognitionParameters{
+			Language: language,
+			AudioEncoding: &speech_center.RecognitionParameters_Pcm{
+				Pcm: &speech_center.PCM{
+					SampleRateHz: sampleRate,
 				},
-				Resource: resource,
 			},
+		},
+		Resource: resource,
+		Version:  speech_center.RecognitionConfig_V1,
+	}
+
+	return &speech_center.RecognitionStreamingRequest{
+		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Config{
+			Config: config,
 		},
 	}
 }
 
-func generateTopicRequest(topic string, language string) (*speech_center.RecognitionRequest, error) {
-	var model speech_center.RecognitionResource_Model
+func generateTopicRequest(topic string, language string) (*speech_center.RecognitionStreamingRequest, error) {
 	topicLower := strings.ToLower(topic)
-	if topicLower == "generic" {
-		model = speech_center.RecognitionResource_GENERIC
-	} else if topicLower == "banking" {
-		model = speech_center.RecognitionResource_BANKING
-	} else if topicLower == "telco" {
-		model = speech_center.RecognitionResource_TELCO
-	} else {
-		return nil, errors.New(fmt.Sprintf("unrecognized topic: %s", topic))
+	if topicLower != "generic" {
+		return nil, errors.New(fmt.Sprintf("unrecognized topic: %s (only 'generic' is supported)", topic))
 	}
+
+	// Default sample rate for speech recognition (16kHz is common)
+	sampleRate := uint32(8000)
 
 	log.Logger.Infof("Performing recognition with topic: %s", topicLower)
 	resource := &speech_center.RecognitionResource{
-		Resource: &speech_center.RecognitionResource_Model_{
-			Model: model,
+		Resource: &speech_center.RecognitionResource_Topic_{
+			Topic: speech_center.RecognitionResource_GENERIC,
 		},
 	}
 
-	return &speech_center.RecognitionRequest{
-		RequestUnion: &speech_center.RecognitionRequest_Init{
-			Init: &speech_center.RecognitionInit{
-				Parameters: &speech_center.RecognitionParameters{
-					Language: language,
+	config := &speech_center.RecognitionConfig{
+		Parameters: &speech_center.RecognitionParameters{
+			Language: language,
+			AudioEncoding: &speech_center.RecognitionParameters_Pcm{
+				Pcm: &speech_center.PCM{
+					SampleRateHz: sampleRate,
 				},
-				Resource: resource,
 			},
+		},
+		Resource: resource,
+		Version:  speech_center.RecognitionConfig_V1,
+	}
+
+	return &speech_center.RecognitionStreamingRequest{
+		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Config{
+			Config: config,
 		},
 	}, nil
 }

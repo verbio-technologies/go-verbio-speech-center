@@ -1,14 +1,15 @@
 package main
 
 import (
-	"github.com/jessevdk/go-flags"
 	"verbio_speech_center"
 	"verbio_speech_center/constants"
 	"verbio_speech_center/log"
+
+	"github.com/jessevdk/go-flags"
 )
 
 const (
-	BACKEND_URL = "csr.api.speechcenter.verbio.com"
+	BACKEND_URL = "us.speechcenter.verbio.com"
 )
 
 var opts struct {
@@ -35,8 +36,9 @@ func main() {
 		url = opts.Url
 	}
 
-	log.Logger.Infof("Using URL: [%s]", url)
+	log.Logger.Infof("Using the URL: [%s]", url)
 	recogniser, err := verbio_speech_center.NewRecogniser(url, opts.TokenFile)
+	log.Logger.Infof("Created recogniser")
 	if err != nil {
 		log.Logger.Fatalf("Error creating recogniser: %+v", err)
 	}

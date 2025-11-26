@@ -15,8 +15,9 @@ for proto_file in ${PROTO_FILENAMES}; do
 protoc \
       --proto_path="${PROTO_DIR}" \
       --go_out="${PROTO_DIR}" \
+      --go-grpc_out="${PROTO_DIR}" \
       --experimental_allow_proto3_optional \
-      "${proto_file}"
+      "${PROTO_DIR}/${proto_file}"
 done
 
 popd
