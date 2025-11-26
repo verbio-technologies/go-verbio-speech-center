@@ -161,7 +161,7 @@ func generateGrammarRequest(grammar string, language string) *speech_center.Reco
 			},
 		},
 		Resource: resource,
-		Version:  speech_center.RecognitionConfig_V1,
+		Version:  speech_center.RecognitionConfig_V2,
 	}
 
 	return &speech_center.RecognitionStreamingRequest{
@@ -197,7 +197,7 @@ func generateTopicRequest(topic string, language string) (*speech_center.Recogni
 			},
 		},
 		Resource: resource,
-		Version:  speech_center.RecognitionConfig_V1,
+		Version:  speech_center.RecognitionConfig_V2,
 	}
 
 	return &speech_center.RecognitionStreamingRequest{
