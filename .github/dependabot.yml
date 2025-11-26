@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[gomod] "
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[gh-actions] "
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[docker] "
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
