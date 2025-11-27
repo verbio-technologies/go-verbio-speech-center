@@ -3,6 +3,8 @@ module verbio_speech_center
 go 1.25
 
 require (
+	github.com/go-audio/audio v1.0.0
+	github.com/go-audio/wav v1.1.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/oauth2 v0.27.0
@@ -12,6 +14,7 @@ require (
 
 require (
 	cloud.google.com/go v0.34.0 // indirect
+	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
