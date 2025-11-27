@@ -51,12 +51,9 @@ jobs:
           echo "GOVERSION=$(go version)" >> $GITHUB_ENV
           go version
 
-      - name: Proto compile golang
-        uses: kubitre/proto_action@v1.2
-        with:
-          dir_with_proto_name: proto
-          path_generated: proto/speech_center # optional
-          
+      - name: Install dependencies
+        run: sudo ./scripts/installDependencies.sh
+
       - name: Run tests
         run: make test
 
