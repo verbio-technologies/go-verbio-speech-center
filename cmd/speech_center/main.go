@@ -107,7 +107,7 @@ func main() {
 			log.Logger.Fatalf("Invalid format: %s (must be wav or raw)", opts.Format)
 		}
 
-		err = synthesizer.SynthesizeSpeech(opts.Text, opts.Voice, samplingRate, format, opts.Output)
+		err = synthesizer.StreamingSynthesizeSpeech(opts.Text, opts.Voice, samplingRate, format, opts.Output)
 		if err != nil {
 			log.Logger.Fatalf("Error in synthesis: %+v", err)
 		}
