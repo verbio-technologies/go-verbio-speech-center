@@ -3,8 +3,9 @@ on:
   pull_request: {}
   push:
     branches:
+      - master
       - main
-      - '*ci*'
+
 jobs:
   test:
     name: lint
