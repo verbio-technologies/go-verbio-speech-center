@@ -51,6 +51,9 @@ jobs:
           echo "GOVERSION=$(go version)" >> $GITHUB_ENV
           go version
 
+      - name: Install dependencies
+        run: ./scripts/installDependencies.sh
+
       - name: Run tests
         run: make test
 
