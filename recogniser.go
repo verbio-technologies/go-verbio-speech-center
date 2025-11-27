@@ -32,7 +32,7 @@ func NewRecogniser(url string, tokenFile string) (*Recogniser, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	conn, err := initConnection(url, token)
 	log.Logger.Infof("Established connection to the URL: [%s]", url)
 	if err != nil {
@@ -81,16 +81,20 @@ func validateURL(url string) error {
 	}
 
 	parts := strings.Split(url, ":")
-	if len(parts) != 2 {
-		return errors.New("URL must be in format host:port")
+	if len(parts) != 2 && len(parts) != 1 {
+		return errors.New("URL must be in format host:port. Port is optional")
+	}
+	host := parts[0]
+	port := ""
+	if len(parts) == 2 {
+		port = parts[1]
 	}
 
-	host, port := parts[0], parts[1]
 	if host == "" {
 		return errors.New("host cannot be empty")
 	}
 
-	if port == "" {
+	if len(parts) == 2 && port == "" {
 		return errors.New("port cannot be empty")
 	}
 

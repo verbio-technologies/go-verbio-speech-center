@@ -33,7 +33,7 @@ func TestNewRecogniserErrors(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, recognizer)
 
-	recognizer, err = NewRecogniser("invalid-url", tokenFile)
+	recognizer, err = NewRecogniser("invalid-url:", createTemporaryToken(t))
 	assert.Error(t, err)
 	assert.Nil(t, recognizer)
 
