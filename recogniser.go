@@ -17,8 +17,9 @@ import (
 )
 
 type Recogniser struct {
-	conn   *grpc.ClientConn
-	client pb.RecognizerClient
+	conn         *grpc.ClientConn
+	client       pb.RecognizerClient
+	streamClient grpc.BidiStreamingClient[pb.RecognitionStreamingRequest, pb.RecognitionStreamingResponse]
 }
 
 func NewRecogniser(url string, tokenFile string) (*Recogniser, error) {
