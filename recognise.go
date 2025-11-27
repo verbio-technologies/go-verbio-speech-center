@@ -109,7 +109,7 @@ func (r *Recogniser) collectResponses(c chan recogResult) chan recogResult {
 			}
 		}
 	}
-	log.Logger.Debugf("< all responses recevied")
+	log.Logger.Debugf("< all responses received")
 	return c
 }
 
