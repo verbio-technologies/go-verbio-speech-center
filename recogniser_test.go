@@ -9,13 +9,7 @@ import (
 )
 
 func TestNewRecogniser(t *testing.T) {
-	// Create temporary token file
-	tmpDir := t.TempDir()
-	tokenFile := filepath.Join(tmpDir, "token.txt")
-	err := os.WriteFile(tokenFile, []byte("test-token"), 0600)
-	assert.NoError(t, err)
-
-	recognizer, err := NewRecogniser("localhost:50051", tokenFile)
+	recognizer, err := NewRecogniser("localhost:50051", createTemporaryToken(t))
 	assert.NoError(t, err)
 	assert.NotNil(t, recognizer)
 	assert.NotNil(t, recognizer.conn)
@@ -26,22 +20,29 @@ func TestNewRecogniser(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestNewRecogniserErrors(t *testing.T) {
-	// Test with non-existent token file
-	recognizer, err := NewRecogniser("localhost:50051", "non-existent-file")
-	assert.Error(t, err)
-	assert.Nil(t, recognizer)
-
-	// Test with invalid URL
+func createTemporaryToken(t *testing.T) string {
 	tmpDir := t.TempDir()
 	tokenFile := filepath.Join(tmpDir, "token.txt")
-	err = os.WriteFile(tokenFile, []byte("test-token"), 0600)
+	err := os.WriteFile(tokenFile, []byte("test-token"), 0600)
 	assert.NoError(t, err)
+	return tokenFile
+}
+
+func TestNewRecogniserErrors(t *testing.T) {
+	recognizer, err := NewRecogniser("localhost", "non-existent-file")
+	assert.Error(t, err)
+	assert.Nil(t, recognizer)
 
 	recognizer, err = NewRecogniser("invalid-url", tokenFile)
 	assert.Error(t, err)
 	assert.Nil(t, recognizer)
 
+}
+
+func TestNonExistentToken(t *testing.T) {
+	recognizer, err := NewRecogniser("localhost:50051", "non-existent-file")
+	assert.Error(t, err)
+	assert.Nil(t, recognizer)
 }
 
 func TestEmptyToken(t *testing.T) {
@@ -51,15 +52,9 @@ func TestEmptyToken(t *testing.T) {
 }
 
 func TestLoadToken(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenFile := filepath.Join(tmpDir, "token.txt")
-	expectedToken := "test-token"
-	err := os.WriteFile(tokenFile, []byte(expectedToken), 0600)
+	token, err := loadToken(createTemporaryToken(t))
 	assert.NoError(t, err)
-
-	token, err := loadToken(tokenFile)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedToken, token)
+	assert.Equal(t, "test-token", token)
 }
 
 func TestNotExistentFile(t *testing.T) {
@@ -69,12 +64,7 @@ func TestNotExistentFile(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenFile := filepath.Join(tmpDir, "token.txt")
-	err := os.WriteFile(tokenFile, []byte("test-token"), 0600)
-	assert.NoError(t, err)
-
-	recognizer, err := NewRecogniser("localhost:50051", tokenFile)
+	recognizer, err := NewRecogniser("localhost:50051", createTemporaryToken(t))
 	assert.NoError(t, err)
 
 	err = recognizer.Close()
