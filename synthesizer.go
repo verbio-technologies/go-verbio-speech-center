@@ -12,6 +12,7 @@ import (
 type Synthesizer struct {
 	conn   *grpc.ClientConn
 	client pb.TextToSpeechClient
+	stream grpc.BidiStreamingClient[pb.StreamingSynthesisRequest, pb.StreamingSynthesisResponse]
 }
 
 func NewSynthesizer(url string, tokenFile string) (*Synthesizer, error) {

@@ -24,14 +24,14 @@ type GlobalOpts struct {
 	Url       string `short:"u" long:"url" description:"Url of the service" default:""`
 }
 
-type RecognizeCmd struct {
+type RecognizeOpts struct {
 	Audio    string `short:"a" long:"audio" description:"Audio file to be sent" required:"true"`
 	Grammar  string `short:"g" long:"grammar" description:"Path to the grammar to be used"`
 	Topic    string `short:"T" long:"topic" description:"Topic to be used"`
 	Language string `short:"L" long:"language" description:"Language to be used" default:"en-US"`
 }
 
-type SynthesizeCmd struct {
+type SynthesizeOpts struct {
 	Text         string `short:"s" long:"text" description:"Text to synthesize" required:"true"`
 	Voice        string `short:"v" long:"voice" description:"Voice code to use for synthesis" required:"true"`
 	SamplingRate string `long:"sampling-rate" description:"Sampling rate for synthesis (8khz or 16khz)" default:"16khz"`
@@ -42,10 +42,10 @@ type SynthesizeCmd struct {
 type RecognizeCommand struct {
 	url       string
 	tokenFile string
-	cmd       *RecognizeCmd
+	cmd       *RecognizeOpts
 }
 
-func NewRecognizeCommand(url, tokenFile string, cmd *RecognizeCmd) Command {
+func NewRecognizeCommand(url, tokenFile string, cmd *RecognizeOpts) Command {
 	return &RecognizeCommand{
 		url:       url,
 		tokenFile: tokenFile,
@@ -80,10 +80,10 @@ func (r *RecognizeCommand) Execute() error {
 type SynthesizeCommand struct {
 	url       string
 	tokenFile string
-	cmd       *SynthesizeCmd
+	cmd       *SynthesizeOpts
 }
 
-func NewSynthesizeCommand(url, tokenFile string, cmd *SynthesizeCmd) Command {
+func NewSynthesizeCommand(url, tokenFile string, cmd *SynthesizeOpts) Command {
 	return &SynthesizeCommand{
 		url:       url,
 		tokenFile: tokenFile,
@@ -144,10 +144,10 @@ var globalOpts GlobalOpts
 var parser = flags.NewParser(&globalOpts, flags.Default)
 
 func main() {
-	recognizeCmd := RecognizeCmd{}
+	recognizeCmd := RecognizeOpts{}
 	parser.AddCommand("recognize", "Recognize speech from audio file", "Recognize speech from an audio file using grammar or topic", &recognizeCmd)
 
-	synthesizeCmd := SynthesizeCmd{}
+	synthesizeCmd := SynthesizeOpts{}
 	parser.AddCommand("synthesize", "Synthesize speech from text", "Synthesize speech from text to audio file", &synthesizeCmd)
 
 	_, err := parser.Parse()
