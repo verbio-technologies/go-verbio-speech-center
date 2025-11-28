@@ -23,13 +23,16 @@ type Recogniser struct {
 }
 
 func NewRecogniser(url string, tokenFile string) (*Recogniser, error) {
+	if err := validateURL(url); err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+
 	token, err := loadToken(tokenFile)
 	log.Logger.Infof("Loaded token from file: [%s]", tokenFile)
 	if err != nil {
 		return nil, err
 	}
 
-	token = strings.TrimSpace(token)
 	conn, err := initConnection(url, token)
 	log.Logger.Infof("Established connection to the URL: [%s]", url)
 	if err != nil {
@@ -69,6 +72,31 @@ func loadToken(file string) (string, error) {
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error reading token file: %+v", err))
 	}
+	return strings.TrimSpace(string(contents)), nil
+}
 
-	return string(contents), nil
+func validateURL(url string) error {
+	if url == "" {
+		return errors.New("URL cannot be empty")
+	}
+
+	parts := strings.Split(url, ":")
+	if len(parts) != 2 && len(parts) != 1 {
+		return errors.New("URL must be in format host:port. Port is optional")
+	}
+	host := parts[0]
+	port := ""
+	if len(parts) == 2 {
+		port = parts[1]
+	}
+
+	if host == "" {
+		return errors.New("host cannot be empty")
+	}
+
+	if len(parts) == 2 && port == "" {
+		return errors.New("port cannot be empty")
+	}
+
+	return nil
 }
