@@ -7,7 +7,7 @@ REPO_ROOT=$(dirname "$SCRIPT_PATH")"/.."
 PATH=${PATH}:${HOME}/go/bin
 
 PROTO_DIR="${REPO_ROOT}/proto"
-PROTO_FILENAMES="recognition_streaming_request.proto recognition_streaming_response.proto recognition.proto"
+PROTO_FILENAMES="recognition_streaming_request.proto recognition_streaming_response.proto recognition.proto verbio-speech-center-synthesizer.proto"
 
 pushd "$REPO_ROOT"
 
