@@ -7,6 +7,7 @@ require (
 	github.com/go-audio/wav v1.1.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/sirupsen/logrus v1.8.1
+	github.com/stretchr/testify v1.2.2
 	golang.org/x/oauth2 v0.27.0
 	google.golang.org/grpc v1.64.1
 	google.golang.org/protobuf v1.33.0
@@ -15,7 +16,9 @@ require (
 require (
 	cloud.google.com/go v0.34.0 // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
