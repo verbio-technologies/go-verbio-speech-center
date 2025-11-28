@@ -4,6 +4,7 @@ set -euxo pipefail
 
 SCRIPT_PATH=$(readlink -f "$0")
 REPO_ROOT=$(dirname "$SCRIPT_PATH")"/.."
+PATH=${PATH}:${HOME}/go/bin
 
 PROTO_DIR="${REPO_ROOT}/proto"
 PROTO_FILENAMES="recognition_streaming_request.proto recognition_streaming_response.proto recognition.proto"

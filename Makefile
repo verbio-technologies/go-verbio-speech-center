@@ -34,8 +34,8 @@ speech_center: deps ## Builds the binary
 version: ## Print the version
 	@echo $(VERSION)
 
-test: ## Run unit tests
-	@ ${GO} test ./... -v -count=1 # count=1 means disable test cache
+test: grpc ## Run unit tests
+	@ ${GO} test ./... -v -count=1 -covermode=count -coverprofile=coverage.out # count=1 means disable test cache
 
 grpc: ## Generate GRPC files
 	@ scripts/generateGrpc.sh
