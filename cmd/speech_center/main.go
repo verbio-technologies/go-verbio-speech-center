@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"verbio_speech_center"
 	"verbio_speech_center/constants"
 	"verbio_speech_center/log"
@@ -13,9 +14,13 @@ const (
 	BACKEND_URL = "us.speechcenter.verbio.com"
 )
 
+type Command interface {
+	Execute() error
+}
+
 type GlobalOpts struct {
 	LogLevel  string `short:"l" long:"log-level" description:"Log Level (must be one of TRACE DEBUG INFO WARN ERROR)" default:"info"`
-	TokenFile string `short:"t" long:"token-file" description:"Path to the Token File"`
+	TokenFile string `short:"t" long:"token-file" description:"Path to the Token File" `
 	Url       string `short:"u" long:"url" description:"Url of the service" default:""`
 }
 
@@ -32,6 +37,107 @@ type SynthesizeCmd struct {
 	SamplingRate string `long:"sampling-rate" description:"Sampling rate for synthesis (8khz or 16khz)" default:"16khz"`
 	Format       string `long:"format" description:"Audio format for synthesis (wav or raw)" default:"wav"`
 	Output       string `short:"o" long:"output" description:"Output file for synthesized audio" required:"true"`
+}
+
+type RecognizeCommand struct {
+	url       string
+	tokenFile string
+	cmd       *RecognizeCmd
+}
+
+func NewRecognizeCommand(url, tokenFile string, cmd *RecognizeCmd) Command {
+	return &RecognizeCommand{
+		url:       url,
+		tokenFile: tokenFile,
+		cmd:       cmd,
+	}
+}
+
+func (r *RecognizeCommand) Execute() error {
+	recogniser, err := verbio_speech_center.NewRecogniser(r.url, r.tokenFile)
+	log.Logger.Infof("Created recogniser")
+	if err != nil {
+		log.Logger.Fatalf("Error creating recogniser: %+v", err)
+	}
+	defer recogniser.Close()
+
+	var res string
+	if r.cmd.Grammar != "" {
+		res, err = recogniser.RecogniseWithGrammar(r.cmd.Audio, r.cmd.Grammar, r.cmd.Language)
+	} else if r.cmd.Topic != "" {
+		res, err = recogniser.RecogniseWithTopic(r.cmd.Audio, r.cmd.Topic, r.cmd.Language)
+	} else {
+		log.Logger.Fatal("Either a grammar or a topic must be specified for recognition")
+	}
+	if err != nil {
+		log.Logger.Fatalf("Error in recognition: %+v", err)
+	}
+
+	log.Logger.Infof("Result: %s", res)
+	return nil
+}
+
+type SynthesizeCommand struct {
+	url       string
+	tokenFile string
+	cmd       *SynthesizeCmd
+}
+
+func NewSynthesizeCommand(url, tokenFile string, cmd *SynthesizeCmd) Command {
+	return &SynthesizeCommand{
+		url:       url,
+		tokenFile: tokenFile,
+		cmd:       cmd,
+	}
+}
+
+func parseFormat(format string) (texttospeech.AudioFormat, error) {
+	switch format {
+	case "wav":
+		return texttospeech.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE, nil
+	case "raw":
+		return texttospeech.AudioFormat_AUDIO_FORMAT_RAW_LPCM_S16LE, nil
+	default:
+		return texttospeech.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE, fmt.Errorf("invalid format: %s (must be wav or raw)", format)
+	}
+}
+
+func parseSamplingRate(rate string) (texttospeech.VoiceSamplingRate, error) {
+	switch rate {
+	case "8khz", "8kHz", "8":
+		return texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ, nil
+	case "16khz", "16kHz", "16":
+		return texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_16KHZ, nil
+	default:
+		return texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ, fmt.Errorf("invalid sampling rate: %s (must be 8khz or 16khz)", rate)
+	}
+}
+
+func (s *SynthesizeCommand) Execute() error {
+	synthesizer, err := verbio_speech_center.NewSynthesizer(s.url, s.tokenFile)
+	log.Logger.Infof("Created synthesizer")
+	if err != nil {
+		log.Logger.Fatalf("Error creating synthesizer: %+v", err)
+	}
+	defer synthesizer.Close()
+
+	samplingRate, err := parseSamplingRate(s.cmd.SamplingRate)
+	if err != nil {
+		log.Logger.Fatalf("%v", err)
+	}
+
+	format, err := parseFormat(s.cmd.Format)
+	if err != nil {
+		log.Logger.Fatalf("%v", err)
+	}
+
+	err = synthesizer.StreamingSynthesizeSpeech(s.cmd.Text, s.cmd.Voice, samplingRate, format, s.cmd.Output)
+	if err != nil {
+		log.Logger.Fatalf("Error in synthesis: %+v", err)
+	}
+
+	log.Logger.Infof("Successfully synthesized speech to %s", s.cmd.Output)
+	return nil
 }
 
 var globalOpts GlobalOpts
@@ -75,71 +181,17 @@ func main() {
 
 	log.Logger.Infof("Using the URL: [%s]", url)
 
+	var command Command
 	switch commandName {
 	case "recognize":
-		executeRecognize(url, globalOpts.TokenFile, &recognizeCmd)
+		command = NewRecognizeCommand(url, globalOpts.TokenFile, &recognizeCmd)
 	case "synthesize":
-		executeSynthesize(url, globalOpts.TokenFile, &synthesizeCmd)
-	}
-}
-
-func executeRecognize(url, tokenFile string, cmd *RecognizeCmd) {
-	recogniser, err := verbio_speech_center.NewRecogniser(url, tokenFile)
-	log.Logger.Infof("Created recogniser")
-	if err != nil {
-		log.Logger.Fatalf("Error creating recogniser: %+v", err)
-	}
-	defer recogniser.Close()
-
-	var res string
-	if cmd.Grammar != "" {
-		res, err = recogniser.RecogniseWithGrammar(cmd.Audio, cmd.Grammar, cmd.Language)
-	} else if cmd.Topic != "" {
-		res, err = recogniser.RecogniseWithTopic(cmd.Audio, cmd.Topic, cmd.Language)
-	} else {
-		log.Logger.Fatal("Either a grammar or a topic must be specified for recognition")
-	}
-	if err != nil {
-		log.Logger.Fatalf("Error in recognition: %+v", err)
-	}
-
-	log.Logger.Infof("Result: %s", res)
-}
-
-func executeSynthesize(url, tokenFile string, cmd *SynthesizeCmd) {
-	synthesizer, err := verbio_speech_center.NewSynthesizer(url, tokenFile)
-	log.Logger.Infof("Created synthesizer")
-	if err != nil {
-		log.Logger.Fatalf("Error creating synthesizer: %+v", err)
-	}
-	defer synthesizer.Close()
-
-	// Parse sampling rate
-	var samplingRate texttospeech.VoiceSamplingRate
-	switch cmd.SamplingRate {
-	case "8khz", "8kHz", "8":
-		samplingRate = texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ
-	case "16khz", "16kHz", "16":
-		samplingRate = texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_16KHZ
+		command = NewSynthesizeCommand(url, globalOpts.TokenFile, &synthesizeCmd)
 	default:
-		log.Logger.Fatalf("Invalid sampling rate: %s (must be 8khz or 16khz)", cmd.SamplingRate)
+		log.Logger.Fatalf("Unknown command: %s", commandName)
 	}
 
-	// Parse format
-	var format texttospeech.AudioFormat
-	switch cmd.Format {
-	case "wav":
-		format = texttospeech.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE
-	case "raw":
-		format = texttospeech.AudioFormat_AUDIO_FORMAT_RAW_LPCM_S16LE
-	default:
-		log.Logger.Fatalf("Invalid format: %s (must be wav or raw)", cmd.Format)
+	if err := command.Execute(); err != nil {
+		log.Logger.Fatalf("Command execution failed: %+v", err)
 	}
-
-	err = synthesizer.StreamingSynthesizeSpeech(cmd.Text, cmd.Voice, samplingRate, format, cmd.Output)
-	if err != nil {
-		log.Logger.Fatalf("Error in synthesis: %+v", err)
-	}
-
-	log.Logger.Infof("Successfully synthesized speech to %s", cmd.Output)
 }
