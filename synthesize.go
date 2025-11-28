@@ -73,8 +73,14 @@ func (s *Synthesizer) closeSend() error {
 	return nil
 }
 
-func (s *Synthesizer) collectAudioChunks() ([]byte, error) {
+type audioResult struct {
+	audioData []byte
+	err       error
+}
+
+func (s *Synthesizer) collectAudioChunks(c chan audioResult) chan audioResult {
 	var allAudioData []byte
+	log.Logger.Debugf("> Waiting for audio responses ...")
 	for {
 		resp, err := s.stream.Recv()
 		if err == io.EOF {
@@ -82,7 +88,8 @@ func (s *Synthesizer) collectAudioChunks() ([]byte, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("error receiving audio: %+v", err)
+			c <- audioResult{audioData: nil, err: fmt.Errorf("error receiving audio: %+v", err)}
+			return c
 		}
 
 		if audio := resp.GetStreamingAudio(); audio != nil {
@@ -96,10 +103,13 @@ func (s *Synthesizer) collectAudioChunks() ([]byte, error) {
 	}
 
 	if len(allAudioData) == 0 {
-		return nil, errors.New("received no audio data")
+		c <- audioResult{audioData: nil, err: errors.New("received no audio data")}
+		return c
 	}
 
-	return allAudioData, nil
+	log.Logger.Debugf("< all audio responses received")
+	c <- audioResult{audioData: allAudioData, err: nil}
+	return c
 }
 
 func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, samplingRate texttospeech.VoiceSamplingRate, format texttospeech.AudioFormat, outputFile string) error {
@@ -119,6 +129,11 @@ func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, sampl
 		return err
 	}
 
+	c := make(chan audioResult)
+	go func() {
+		c = s.collectAudioChunks(c)
+	}()
+
 	if err := s.sendConfig(voice, samplingRate); err != nil {
 		return err
 	}
@@ -135,11 +150,15 @@ func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, sampl
 		return err
 	}
 
-	allAudioData, err := s.collectAudioChunks()
-	if err != nil {
-		return err
+	log.Logger.Info("Waiting for audio collection to finish")
+	result := <-c
+	if result.err != nil {
+		return result.err
 	}
 
+	allAudioData := result.audioData
+
+	var err error
 	if format == texttospeech.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE {
 		err = saveWavAudio(outputFile, allAudioData, samplingRate)
 	} else {
