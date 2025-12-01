@@ -19,6 +19,13 @@ jobs:
         with:
           go-version: '^1.25'
 
+      # Install dependencies and generate proto files
+      - name: Install dependencies
+        run: ./scripts/installDependencies.sh
+
+      - name: Generate proto files
+        run: make grpc
+
       # Check format
       - run: make check-fmt
 
