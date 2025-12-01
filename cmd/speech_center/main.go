@@ -119,7 +119,11 @@ func (s *SynthesizeCommand) Execute() error {
 	if err != nil {
 		log.Logger.Fatalf("Error creating synthesizer: %+v", err)
 	}
-	defer synthesizer.Close()
+	defer func() {
+		if err := synthesizer.Close(); err != nil {
+			log.Logger.Errorf("Error closing synthesizer: %+v", err)
+		}
+	}()
 
 	samplingRate, err := parseSamplingRate(s.cmd.SamplingRate)
 	if err != nil {
@@ -145,12 +149,18 @@ var parser = flags.NewParser(&globalOpts, flags.Default)
 
 func main() {
 	recognizeCmd := RecognizeOpts{}
-	parser.AddCommand("recognize", "Recognize speech from audio file", "Recognize speech from an audio file using grammar or topic", &recognizeCmd)
+	_, err := parser.AddCommand("recognize", "Recognize speech from audio file", "Recognize speech from an audio file using grammar or topic", &recognizeCmd)
+	if err != nil {
+		log.Logger.Fatalf("Failed to add 'recognize' command: %+v", err)
+	}
 
 	synthesizeCmd := SynthesizeOpts{}
-	parser.AddCommand("synthesize", "Synthesize speech from text", "Synthesize speech from text to audio file", &synthesizeCmd)
+	_, err = parser.AddCommand("synthesize", "Synthesize speech from text", "Synthesize speech from text to audio file", &synthesizeCmd)
+	if err != nil {
+		log.Logger.Fatalf("Failed to add 'synthesize' command: %+v", err)
+	}
 
-	_, err := parser.Parse()
+	_, err = parser.Parse()
 	if err != nil {
 		if flagsErr, ok := err.(*flags.Error); ok {
 			if flagsErr.Type == flags.ErrUnknownCommand {

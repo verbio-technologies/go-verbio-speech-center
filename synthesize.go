@@ -211,7 +211,12 @@ func saveWavAudio(file string, pcmData []byte, samplingRate texttospeech.VoiceSa
 	if err != nil {
 		return fmt.Errorf("error creating WAV file: %+v", err)
 	}
-	defer outFile.Close()
+
+	defer func() {
+		if err := outFile.Close(); err != nil {
+			log.Logger.Errorf("Error closing output file: %+v", err)
+		}
+	}()
 
 	format := 1
 	bitDepth := 16
