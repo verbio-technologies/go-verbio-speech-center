@@ -194,14 +194,14 @@ func (r *Recogniser) SendAudioRequest(audioChunk []byte) error {
 	return r.streamClient.Send(audioRequest)
 }
 
-func generateGrammarRequest(grammar string, language string) *speech_center.RecognitionStreamingRequest {
+func generateGrammarRequest(grammar []byte, language string) *speech_center.RecognitionStreamingRequest {
 	sampleRate := uint32(8000)
 
 	resource := &speech_center.RecognitionResource{
 		Resource: &speech_center.RecognitionResource_Grammar{
 			Grammar: &speech_center.GrammarResource{
-				Grammar: &speech_center.GrammarResource_InlineGrammar{
-					InlineGrammar: grammar,
+				Grammar: &speech_center.GrammarResource_CompiledGrammar{
+					CompiledGrammar: grammar,
 				},
 			},
 		},
@@ -272,11 +272,11 @@ func loadAudio(file string) ([]byte, error) {
 	return contents, nil
 }
 
-func loadGrammar(file string) (string, error) {
+func loadGrammar(file string) ([]byte, error) {
 	contents, err := os.ReadFile(file)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("error reading grammar file: %+v", err))
+		return nil, errors.New(fmt.Sprintf("error reading grammar file: %+v", err))
 	}
 
-	return string(contents), nil
+	return contents, nil
 }
