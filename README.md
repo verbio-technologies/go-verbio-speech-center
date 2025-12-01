@@ -1,5 +1,3 @@
-> WARNING: This repository is no longer updated or mantained. Please refer to our [python](https://github.com/verbio-technologies/python-verbio-speech-center) or [c++](https://github.com/verbio-technologies/cpp-verbio-speech-center) alternatives.
-
 # Verbio Speech Center (Go client)
 
 [![Lint](https://github.com/cquintana92/go-verbio-speech-center/actions/workflows/lint.yaml/badge.svg)](https://github.com/cquintana92/go-verbio-speech-center/actions/workflows/lint.yaml)
@@ -40,8 +38,9 @@ The binary will be placed at `bin/`
 
 ```shell
 # Topic recognition
-$ bin/speech_center -a audios/example.wav -t your.speech-center.token.file --topic generic --language en-US
+$ bin/speech_center recognize -a your_audio_file.wav -t your_token.txt  --language language-id -T GENERIC
 
-# Grammar recognition
-$ bin/speech_center -a audios/example.wav -t your.speech-center.token.file --grammar path/to/grammar.bnf --language en-US
+# Audio synthesis
+$ bin/speech_center synthesize -s "your string" -v voice-id -o output.wav --format wav --sampling-rate 8 -t your_token.txt
+
 ```
