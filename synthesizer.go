@@ -16,6 +16,10 @@ type Synthesizer struct {
 }
 
 func NewSynthesizer(url string, tokenFile string) (*Synthesizer, error) {
+	if err := validateURL(url); err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+
 	token, err := loadToken(tokenFile)
 	log.Logger.Infof("Loaded token from file: [%s]", tokenFile)
 	if err != nil {
