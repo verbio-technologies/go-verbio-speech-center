@@ -8,6 +8,8 @@ PROJECT_ROOT := $(dir $(MAKEFILE_PATH))
 BIN_DIRECTORY := ${PROJECT_ROOT}/bin
 
 GO:=go
+GOBIN:=/usr/local/bin
+BUF_VERSION:=v1.61.0
 
 DISABLE_CACHE:=-count=1
 VERBOSE:=-v
@@ -24,6 +26,8 @@ BUILD_WITH_VERSION_COMMAND=CGO_ENABLED=0 ${BUILD_COMMAND} ${VERSION_VARIABLE_BUI
 all: help
 
 deps: ## Download all dependencies
+	@ sudo ${GO} install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION}
+	@ buf generate
 	@ ${GO} get verbio_speech_center
 
 build: deps speech_center ## Builds the binaries
@@ -34,14 +38,8 @@ speech_center: deps ## Builds the binary
 version: ## Print the version
 	@echo $(VERSION)
 
-test: grpc ## Run unit tests
+test: deps ## Run unit tests
 	@ ${GO} test ./... -v -count=1 -covermode=count -coverprofile=coverage.out # count=1 means disable test cache
-
-grpc: ## Generate GRPC files
-	@ scripts/generateGrpc.sh
-
-grpc-docker: ## Generate GRPC files (using Docker, useful if you don't have the dependencies installed)
-	@ scripts/generateGrpcInDocker.sh
 
 coverage: ## Run tests with coverage
 	@ scripts/coverage.sh

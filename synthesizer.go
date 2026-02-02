@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"verbio_speech_center/log"
-	pb "verbio_speech_center/proto/texttospeech"
+	pb "verbio_speech_center/proto/speechcenter/tts"
 
 	"google.golang.org/grpc"
 )

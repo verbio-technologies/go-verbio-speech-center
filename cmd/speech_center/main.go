@@ -5,7 +5,7 @@ import (
 	"verbio_speech_center"
 	"verbio_speech_center/constants"
 	"verbio_speech_center/log"
-	"verbio_speech_center/proto/texttospeech"
+	ttsv1 "verbio_speech_center/proto/speechcenter/tts"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -91,25 +91,25 @@ func NewSynthesizeCommand(url, tokenFile string, cmd *SynthesizeOpts) Command {
 	}
 }
 
-func parseFormat(format string) (texttospeech.AudioFormat, error) {
+func parseFormat(format string) (ttsv1.AudioFormat, error) {
 	switch format {
 	case "wav":
-		return texttospeech.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE, nil
+		return ttsv1.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE, nil
 	case "raw":
-		return texttospeech.AudioFormat_AUDIO_FORMAT_RAW_LPCM_S16LE, nil
+		return ttsv1.AudioFormat_AUDIO_FORMAT_RAW_LPCM_S16LE, nil
 	default:
-		return texttospeech.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE, fmt.Errorf("invalid format: %s (must be wav or raw)", format)
+		return ttsv1.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE, fmt.Errorf("invalid format: %s (must be wav or raw)", format)
 	}
 }
 
-func parseSamplingRate(rate string) (texttospeech.VoiceSamplingRate, error) {
+func parseSamplingRate(rate string) (ttsv1.VoiceSamplingRate, error) {
 	switch rate {
 	case "8khz", "8kHz", "8":
-		return texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ, nil
+		return ttsv1.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ, nil
 	case "16khz", "16kHz", "16":
-		return texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_16KHZ, nil
+		return ttsv1.VoiceSamplingRate_VOICE_SAMPLING_RATE_16KHZ, nil
 	default:
-		return texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ, fmt.Errorf("invalid sampling rate: %s (must be 8khz or 16khz)", rate)
+		return ttsv1.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ, fmt.Errorf("invalid sampling rate: %s (must be 8khz or 16khz)", rate)
 	}
 }
 

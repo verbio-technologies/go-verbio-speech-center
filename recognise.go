@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 	"verbio_speech_center/log"
-	"verbio_speech_center/proto/speech_center"
+	sttv1 "verbio_speech_center/proto/speechcenter/stt"
 
 	"google.golang.org/grpc"
 )
@@ -45,7 +45,7 @@ type recogResult struct {
 	err         error
 }
 
-func (r *Recogniser) performRecognition(audioFile string, configuration *speech_center.RecognitionStreamingRequest) (string, error) {
+func (r *Recogniser) performRecognition(audioFile string, configuration *sttv1.RecognitionStreamingRequest) (string, error) {
 	audio, err := loadAudio(audioFile)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error loading audio file %+v", err))
@@ -61,7 +61,7 @@ func (r *Recogniser) performRecognition(audioFile string, configuration *speech_
 		c = r.collectResponses(c)
 	}()
 
-	if err = r.sendAudio(err, configuration, audio); err != nil {
+	if err = r.sendAudio(configuration, audio); err != nil {
 		return "", err
 	}
 
@@ -79,7 +79,7 @@ func (r *Recogniser) collectResponses(c chan recogResult) chan recogResult {
 	log.Logger.Debugf("> Waiting for responses ...")
 	totalAudioLengthInMs := float32(0)
 	for {
-		resp := &speech_center.RecognitionStreamingResponse{}
+		resp := &sttv1.RecognitionStreamingResponse{}
 		err := r.streamClient.RecvMsg(resp)
 		if err != nil {
 			if err == io.EOF {
@@ -113,7 +113,7 @@ func (r *Recogniser) collectResponses(c chan recogResult) chan recogResult {
 	return c
 }
 
-func (r *Recogniser) calculateEndOfUtteranceSilence(result *speech_center.RecognitionResult, totalAudioLengthInMs float32) int32 {
+func (r *Recogniser) calculateEndOfUtteranceSilence(result *sttv1.RecognitionResult, totalAudioLengthInMs float32) int32 {
 	words := result.Alternatives[0].Words
 	finalSilenceInMs := int32(0)
 	if len(words) > 0 {
@@ -122,17 +122,17 @@ func (r *Recogniser) calculateEndOfUtteranceSilence(result *speech_center.Recogn
 	return finalSilenceInMs
 }
 
-func (r *Recogniser) sendAudio(err error, configuration *speech_center.RecognitionStreamingRequest, audio []byte) error {
+func (r *Recogniser) sendAudio(configuration *sttv1.RecognitionStreamingRequest, audio []byte) error {
 	log.Logger.Info("Sending configuration request")
-	if err = r.streamClient.Send(configuration); err != nil {
+	if err := r.streamClient.Send(configuration); err != nil {
 		return errors.New(fmt.Sprintf("error sending configuration request: %+v", err))
 	}
 
-	if err = r.sendAudioStream(audio); err != nil {
+	if err := r.sendAudioStream(audio); err != nil {
 		return err
 	}
 
-	if err = r.streamClient.CloseSend(); err != nil {
+	if err := r.streamClient.CloseSend(); err != nil {
 		return errors.New(fmt.Sprintf("error closing send: %+v", err))
 	}
 	return nil
@@ -169,10 +169,10 @@ func (r *Recogniser) sendAudioChunks(audio []byte) error {
 func (r *Recogniser) sendEndOfStream() error {
 	// Send END_OF_STREAM event
 	log.Logger.Info("Sending END_OF_STREAM event")
-	endOfStreamRequest := &speech_center.RecognitionStreamingRequest{
-		RecognitionRequest: &speech_center.RecognitionStreamingRequest_EventMessage{
-			EventMessage: &speech_center.EventMessage{
-				Event: speech_center.EventMessage_END_OF_STREAM,
+	endOfStreamRequest := &sttv1.RecognitionStreamingRequest{
+		RecognitionRequest: &sttv1.RecognitionStreamingRequest_EventMessage{
+			EventMessage: &sttv1.EventMessage{
+				Event: sttv1.EventMessage_END_OF_STREAM,
 			},
 		},
 	}
@@ -183,8 +183,8 @@ func (r *Recogniser) SendAudioRequest(audioChunk []byte) error {
 	log.Logger.Tracef("Sending audio chunk (size: %d bytes)", len(audioChunk))
 	const sampleRate = int32(8000)
 	endOfRequest := time.Now().Add(time.Duration(float64(len(audioChunk)) / float64(sampleRate) * float64(time.Second)))
-	audioRequest := &speech_center.RecognitionStreamingRequest{
-		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Audio{
+	audioRequest := &sttv1.RecognitionStreamingRequest{
+		RecognitionRequest: &sttv1.RecognitionStreamingRequest_Audio{
 			Audio: audioChunk,
 		},
 	}
@@ -194,40 +194,40 @@ func (r *Recogniser) SendAudioRequest(audioChunk []byte) error {
 	return r.streamClient.Send(audioRequest)
 }
 
-func generateGrammarRequest(grammar []byte, language string) *speech_center.RecognitionStreamingRequest {
+func generateGrammarRequest(grammar []byte, language string) *sttv1.RecognitionStreamingRequest {
 	sampleRate := uint32(8000)
 
-	resource := &speech_center.RecognitionResource{
-		Resource: &speech_center.RecognitionResource_Grammar{
-			Grammar: &speech_center.GrammarResource{
-				Grammar: &speech_center.GrammarResource_CompiledGrammar{
+	resource := &sttv1.RecognitionResource{
+		Resource: &sttv1.RecognitionResource_Grammar{
+			Grammar: &sttv1.GrammarResource{
+				Grammar: &sttv1.GrammarResource_CompiledGrammar{
 					CompiledGrammar: grammar,
 				},
 			},
 		},
 	}
 
-	config := &speech_center.RecognitionConfig{
-		Parameters: &speech_center.RecognitionParameters{
+	config := &sttv1.RecognitionConfig{
+		Parameters: &sttv1.RecognitionParameters{
 			Language: language,
-			AudioEncoding: &speech_center.RecognitionParameters_Pcm{
-				Pcm: &speech_center.PCM{
+			AudioEncoding: &sttv1.RecognitionParameters_Pcm{
+				Pcm: &sttv1.PCM{
 					SampleRateHz: sampleRate,
 				},
 			},
 		},
 		Resource: resource,
-		Version:  speech_center.RecognitionConfig_V2,
+		Version:  sttv1.RecognitionConfig_V2,
 	}
 
-	return &speech_center.RecognitionStreamingRequest{
-		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Config{
+	return &sttv1.RecognitionStreamingRequest{
+		RecognitionRequest: &sttv1.RecognitionStreamingRequest_Config{
 			Config: config,
 		},
 	}
 }
 
-func generateTopicRequest(topic string, language string) (*speech_center.RecognitionStreamingRequest, error) {
+func generateTopicRequest(topic string, language string) (*sttv1.RecognitionStreamingRequest, error) {
 	topicLower := strings.ToLower(topic)
 	if topicLower != "generic" {
 		return nil, errors.New(fmt.Sprintf("unrecognized topic: %s (only 'generic' is supported)", topic))
@@ -237,27 +237,27 @@ func generateTopicRequest(topic string, language string) (*speech_center.Recogni
 	sampleRate := uint32(8000)
 
 	log.Logger.Infof("Performing recognition with topic: %s", topicLower)
-	resource := &speech_center.RecognitionResource{
-		Resource: &speech_center.RecognitionResource_Topic_{
-			Topic: speech_center.RecognitionResource_GENERIC,
+	resource := &sttv1.RecognitionResource{
+		Resource: &sttv1.RecognitionResource_Topic_{
+			Topic: sttv1.RecognitionResource_GENERIC,
 		},
 	}
 
-	config := &speech_center.RecognitionConfig{
-		Parameters: &speech_center.RecognitionParameters{
+	config := &sttv1.RecognitionConfig{
+		Parameters: &sttv1.RecognitionParameters{
 			Language: language,
-			AudioEncoding: &speech_center.RecognitionParameters_Pcm{
-				Pcm: &speech_center.PCM{
+			AudioEncoding: &sttv1.RecognitionParameters_Pcm{
+				Pcm: &sttv1.PCM{
 					SampleRateHz: sampleRate,
 				},
 			},
 		},
 		Resource: resource,
-		Version:  speech_center.RecognitionConfig_V2,
+		Version:  sttv1.RecognitionConfig_V2,
 	}
 
-	return &speech_center.RecognitionStreamingRequest{
-		RecognitionRequest: &speech_center.RecognitionStreamingRequest_Config{
+	return &sttv1.RecognitionStreamingRequest{
+		RecognitionRequest: &sttv1.RecognitionStreamingRequest_Config{
 			Config: config,
 		},
 	}, nil

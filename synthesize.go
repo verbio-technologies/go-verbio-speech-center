@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 	"verbio_speech_center/log"
-	"verbio_speech_center/proto/texttospeech"
+	ttsv1 "verbio_speech_center/proto/speechcenter/tts"
 
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
@@ -24,10 +24,10 @@ func (s *Synthesizer) getStreamingClient() error {
 	return nil
 }
 
-func (s *Synthesizer) sendConfig(voice string, samplingRate texttospeech.VoiceSamplingRate) error {
-	config := &texttospeech.StreamingSynthesisRequest{
-		SynthesisRequest: &texttospeech.StreamingSynthesisRequest_Config{
-			Config: &texttospeech.SynthesisConfig{
+func (s *Synthesizer) sendConfig(voice string, samplingRate ttsv1.VoiceSamplingRate) error {
+	config := &ttsv1.StreamingSynthesisRequest{
+		SynthesisRequest: &ttsv1.StreamingSynthesisRequest_Config{
+			Config: &ttsv1.SynthesisConfig{
 				Voice:        voice,
 				SamplingRate: samplingRate,
 			},
@@ -41,8 +41,8 @@ func (s *Synthesizer) sendConfig(voice string, samplingRate texttospeech.VoiceSa
 }
 
 func (s *Synthesizer) sendText(text string) error {
-	textReq := &texttospeech.StreamingSynthesisRequest{
-		SynthesisRequest: &texttospeech.StreamingSynthesisRequest_Text{
+	textReq := &ttsv1.StreamingSynthesisRequest{
+		SynthesisRequest: &ttsv1.StreamingSynthesisRequest_Text{
 			Text: text,
 		},
 	}
@@ -54,9 +54,9 @@ func (s *Synthesizer) sendText(text string) error {
 }
 
 func (s *Synthesizer) sendEndOfUtterance() error {
-	endReq := &texttospeech.StreamingSynthesisRequest{
-		SynthesisRequest: &texttospeech.StreamingSynthesisRequest_EndOfUtterance{
-			EndOfUtterance: &texttospeech.EndOfUtterance{},
+	endReq := &ttsv1.StreamingSynthesisRequest{
+		SynthesisRequest: &ttsv1.StreamingSynthesisRequest_EndOfUtterance{
+			EndOfUtterance: &ttsv1.EndOfUtterance{},
 		},
 	}
 	if err := s.stream.Send(endReq); err != nil {
@@ -112,7 +112,7 @@ func (s *Synthesizer) collectAudioChunks(c chan audioResult) chan audioResult {
 	return c
 }
 
-func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, samplingRate texttospeech.VoiceSamplingRate, format texttospeech.AudioFormat, outputFile string) error {
+func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, samplingRate ttsv1.VoiceSamplingRate, format ttsv1.AudioFormat, outputFile string) error {
 	log.Logger.Infof("Streaming synthesis [text=%s] [voice=%s] [samplingRate=%v] [format=%v] [outputFile=%s]", text, voice, samplingRate, format, outputFile)
 
 	if text == "" {
@@ -159,7 +159,7 @@ func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, sampl
 	allAudioData := result.audioData
 
 	var err error
-	if format == texttospeech.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE {
+	if format == ttsv1.AudioFormat_AUDIO_FORMAT_WAV_LPCM_S16LE {
 		err = saveWavAudio(outputFile, allAudioData, samplingRate)
 	} else {
 		err = saveRawAudio(outputFile, allAudioData)
@@ -180,12 +180,12 @@ func saveRawAudio(file string, pcmData []byte) error {
 	return nil
 }
 
-func saveWavAudio(file string, pcmData []byte, samplingRate texttospeech.VoiceSamplingRate) error {
+func saveWavAudio(file string, pcmData []byte, samplingRate ttsv1.VoiceSamplingRate) error {
 	var sampleRate int
 	switch samplingRate {
-	case texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ:
+	case ttsv1.VoiceSamplingRate_VOICE_SAMPLING_RATE_8KHZ:
 		sampleRate = 8000
-	case texttospeech.VoiceSamplingRate_VOICE_SAMPLING_RATE_16KHZ:
+	case ttsv1.VoiceSamplingRate_VOICE_SAMPLING_RATE_16KHZ:
 		sampleRate = 16000
 	default:
 		sampleRate = 16000

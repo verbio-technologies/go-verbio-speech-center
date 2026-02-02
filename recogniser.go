@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 	"verbio_speech_center/log"
-	pb "verbio_speech_center/proto/speech_center"
+	pb "verbio_speech_center/proto/speechcenter/stt"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
