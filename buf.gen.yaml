@@ -2,6 +2,9 @@ version: v2
 clean: true
 managed:
   enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: verbio_speech_center
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: proto
