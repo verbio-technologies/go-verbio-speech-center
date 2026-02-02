@@ -19,11 +19,13 @@ jobs:
         with:
           go-version: '^1.25'
 
-      - name: Install dependencies
-        run: ./scripts/installDependencies.sh
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@v1.50.0
+        with:
+          version: "1.64.0"
 
-      - name: Generate proto files
-        run: make grpc
+      - name: gRPC proto definitions compilation
+        run: make deps
 
       # Check format
       - run: make check-fmt
