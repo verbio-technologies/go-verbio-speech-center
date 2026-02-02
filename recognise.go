@@ -61,7 +61,7 @@ func (r *Recogniser) performRecognition(audioFile string, configuration *sttv1.R
 		c = r.collectResponses(c)
 	}()
 
-	if err = r.sendAudio(err, configuration, audio); err != nil {
+	if err = r.sendAudio(configuration, audio); err != nil {
 		return "", err
 	}
 
@@ -122,17 +122,17 @@ func (r *Recogniser) calculateEndOfUtteranceSilence(result *sttv1.RecognitionRes
 	return finalSilenceInMs
 }
 
-func (r *Recogniser) sendAudio(err error, configuration *sttv1.RecognitionStreamingRequest, audio []byte) error {
+func (r *Recogniser) sendAudio(configuration *sttv1.RecognitionStreamingRequest, audio []byte) error {
 	log.Logger.Info("Sending configuration request")
-	if err = r.streamClient.Send(configuration); err != nil {
+	if err := r.streamClient.Send(configuration); err != nil {
 		return errors.New(fmt.Sprintf("error sending configuration request: %+v", err))
 	}
 
-	if err = r.sendAudioStream(audio); err != nil {
+	if err := r.sendAudioStream(audio); err != nil {
 		return err
 	}
 
-	if err = r.streamClient.CloseSend(); err != nil {
+	if err := r.streamClient.CloseSend(); err != nil {
 		return errors.New(fmt.Sprintf("error closing send: %+v", err))
 	}
 	return nil
