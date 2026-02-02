@@ -26,7 +26,8 @@ BUILD_WITH_VERSION_COMMAND=CGO_ENABLED=0 ${BUILD_COMMAND} ${VERSION_VARIABLE_BUI
 all: help
 
 deps: ## Download all dependencies
-    @ sudo ${GO} install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION}
+	@ sudo ${GO} install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION}
+	@ buf generate
 	@ ${GO} get verbio_speech_center
 
 build: deps speech_center ## Builds the binaries
