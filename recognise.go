@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-func (r *Recogniser) RecogniseWithGrammar(audioFile string, grammarFile string, language string) (string, error) {
-	log.Logger.Infof("Performing Grammar recognition [audioFile=%s] [grammarFile=%s] [language=%s]", audioFile, grammarFile, language)
+func (r *Recogniser) RecogniseWithGrammar(audioFile string, grammarFile string, language string, wordBoosting []string) (string, error) {
+	log.Logger.Infof("Performing Grammar recognition [audioFile=%s] [grammarFile=%s] [language=%s] [wordBoosting=%v]", audioFile, grammarFile, language, wordBoosting)
 
 	if grammarFile != "" {
 		grammar, err := loadGrammar(grammarFile)
@@ -23,7 +23,7 @@ func (r *Recogniser) RecogniseWithGrammar(audioFile string, grammarFile string, 
 			return "", errors.New(fmt.Sprintf("error loading grammar: %+v", err))
 		}
 
-		configuration := generateGrammarRequest(grammar, language)
+		configuration := generateGrammarRequest(grammar, language, wordBoosting)
 		return r.performRecognition(audioFile, configuration)
 
 	} else {
@@ -31,9 +31,9 @@ func (r *Recogniser) RecogniseWithGrammar(audioFile string, grammarFile string, 
 	}
 }
 
-func (r *Recogniser) RecogniseWithTopic(audioFile string, topic string, language string) (string, error) {
-	log.Logger.Infof("Performing Topic recognition [audioFile=%s] [topic=%s] [language=%s]", audioFile, topic, language)
-	configuration, err := generateTopicRequest(topic, language)
+func (r *Recogniser) RecogniseWithTopic(audioFile string, topic string, language string, wordBoosting []string) (string, error) {
+	log.Logger.Infof("Performing Topic recognition [audioFile=%s] [topic=%s] [language=%s] [wordBoosting=%v]", audioFile, topic, language, wordBoosting)
+	configuration, err := generateTopicRequest(topic, language, wordBoosting)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error creating topic request: %+v", err))
 	}
@@ -194,7 +194,7 @@ func (r *Recogniser) SendAudioRequest(audioChunk []byte) error {
 	return r.streamClient.Send(audioRequest)
 }
 
-func generateGrammarRequest(grammar []byte, language string) *sttv1.RecognitionStreamingRequest {
+func generateGrammarRequest(grammar []byte, language string, wordBoosting []string) *sttv1.RecognitionStreamingRequest {
 	sampleRate := uint32(8000)
 
 	resource := &sttv1.RecognitionResource{
@@ -215,6 +215,7 @@ func generateGrammarRequest(grammar []byte, language string) *sttv1.RecognitionS
 					SampleRateHz: sampleRate,
 				},
 			},
+			WordBoosting: wordBoosting,
 		},
 		Resource: resource,
 		Version:  sttv1.RecognitionConfig_V2,
@@ -227,7 +228,7 @@ func generateGrammarRequest(grammar []byte, language string) *sttv1.RecognitionS
 	}
 }
 
-func generateTopicRequest(topic string, language string) (*sttv1.RecognitionStreamingRequest, error) {
+func generateTopicRequest(topic string, language string, wordBoosting []string) (*sttv1.RecognitionStreamingRequest, error) {
 	topicLower := strings.ToLower(topic)
 	if topicLower != "generic" {
 		return nil, errors.New(fmt.Sprintf("unrecognized topic: %s (only 'generic' is supported)", topic))
@@ -251,6 +252,7 @@ func generateTopicRequest(topic string, language string) (*sttv1.RecognitionStre
 					SampleRateHz: sampleRate,
 				},
 			},
+			WordBoosting: wordBoosting,
 		},
 		Resource: resource,
 		Version:  sttv1.RecognitionConfig_V2,
