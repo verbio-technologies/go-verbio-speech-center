@@ -25,10 +25,11 @@ type GlobalOpts struct {
 }
 
 type RecognizeOpts struct {
-	Audio    string `short:"a" long:"audio" description:"Audio file to be sent" required:"true"`
-	Grammar  string `short:"g" long:"grammar" description:"Path to the grammar to be used"`
-	Topic    string `short:"T" long:"topic" description:"Topic to be used"`
-	Language string `short:"L" long:"language" description:"Language to be used" default:"en-US"`
+	Audio        string   `short:"a" long:"audio" description:"Audio file to be sent" required:"true"`
+	Grammar      string   `short:"g" long:"grammar" description:"Path to the grammar to be used"`
+	Topic        string   `short:"T" long:"topic" description:"Topic to be used"`
+	Language     string   `short:"L" long:"language" description:"Language to be used" default:"en-US"`
+	WordBoosting []string `short:"w" long:"word-boosting" description:"Word to boost during recognition (can be specified multiple times)"`
 }
 
 type SynthesizeOpts struct {
@@ -63,9 +64,9 @@ func (r *RecognizeCommand) Execute() error {
 
 	var res string
 	if r.cmd.Grammar != "" {
-		res, err = recogniser.RecogniseWithGrammar(r.cmd.Audio, r.cmd.Grammar, r.cmd.Language)
+		res, err = recogniser.RecogniseWithGrammar(r.cmd.Audio, r.cmd.Grammar, r.cmd.Language, r.cmd.WordBoosting)
 	} else if r.cmd.Topic != "" {
-		res, err = recogniser.RecogniseWithTopic(r.cmd.Audio, r.cmd.Topic, r.cmd.Language)
+		res, err = recogniser.RecogniseWithTopic(r.cmd.Audio, r.cmd.Topic, r.cmd.Language, r.cmd.WordBoosting)
 	} else {
 		log.Logger.Fatal("Either a grammar or a topic must be specified for recognition")
 	}
