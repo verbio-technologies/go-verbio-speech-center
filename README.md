@@ -19,7 +19,7 @@ The binary will be placed at `bin/`
 
 ```shell
 # Topic recognition
-$ bin/speech_center recognize -a your_audio_file.wav -t your_token.txt  --language language-id -T GENERIC
+$ bin/speech_center recognize -a your_audio_file.wav -t your_token.txt  --language language-id -T GENERIC --word-boosting term1 --word-boosting term2
 
 # Audio synthesis
 $ bin/speech_center synthesize -s "your string" -v voice-id -o output.wav --format wav --sampling-rate 8 -t your_token.txt
