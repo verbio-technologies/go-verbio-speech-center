@@ -101,3 +101,38 @@ func TestValidateURL(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildPronunciationEntries(t *testing.T) {
+	t.Run("nil map returns nil", func(t *testing.T) {
+		entries := buildPronunciationEntries(nil)
+		assert.Nil(t, entries)
+	})
+
+	t.Run("empty map returns nil", func(t *testing.T) {
+		entries := buildPronunciationEntries(map[string]string{})
+		assert.Nil(t, entries)
+	})
+
+	t.Run("single entry", func(t *testing.T) {
+		dict := map[string]string{"Claughton": "ˈklɒftən"}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 1)
+		assert.Equal(t, "Claughton", entries[0].Term)
+		assert.Equal(t, "ˈklɒftən", entries[0].GetIpa())
+	})
+
+	t.Run("multiple entries", func(t *testing.T) {
+		dict := map[string]string{
+			"Claughton": "ˈklɒftən",
+			"Karandish": "kəˈrɒndɪʃ",
+		}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 2)
+		found := make(map[string]string)
+		for _, e := range entries {
+			found[e.Term] = e.GetIpa()
+		}
+		assert.Equal(t, "ˈklɒftən", found["Claughton"])
+		assert.Equal(t, "kəˈrɒndɪʃ", found["Karandish"])
+	})
+}
