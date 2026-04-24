@@ -40,7 +40,7 @@ type SynthesizeOpts struct {
 	SamplingRate  string `long:"sampling-rate" description:"Sampling rate for synthesis (8khz or 16khz)" default:"16khz"`
 	Format        string `long:"format" description:"Audio format for synthesis (wav or raw)" default:"wav"`
 	Output        string `short:"o" long:"output" description:"Output file for synthesized audio" required:"true"`
-	Pronunciation string `short:"P" long:"pronunciation" description:"Pronunciation dictionary as JSON string or path to JSON file (e.g. '{\"word\": \"IPA\"}')"`
+	Pronunciation string `short:"p" long:"pronunciation" description:"Pronunciation dictionary as JSON string or path to JSON file (e.g. '{\"word\": \"IPA\"}')"`
 }
 
 type RecognizeCommand struct {
