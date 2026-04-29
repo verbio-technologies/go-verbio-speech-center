@@ -101,3 +101,52 @@ func TestValidateURL(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildPronunciationEntries(t *testing.T) {
+	t.Run("nil map returns nil", func(t *testing.T) {
+		entries := buildPronunciationEntries(nil)
+		assert.Nil(t, entries)
+	})
+
+	t.Run("empty map returns nil", func(t *testing.T) {
+		entries := buildPronunciationEntries(map[string]string{})
+		assert.Nil(t, entries)
+	})
+
+	t.Run("single entry", func(t *testing.T) {
+		dict := map[string]string{"Claughton": "ˈklɒftən"}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 1)
+		assert.Equal(t, "Claughton", entries[0].Term)
+		assert.Equal(t, "ˈklɒftən", entries[0].GetIpa())
+	})
+
+	t.Run("multiple entries", func(t *testing.T) {
+		dict := map[string]string{
+			"Claughton": "ˈklɒftən",
+			"Karandish": "kəˈrɒndɪʃ",
+		}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 2)
+		assert.Equal(t, "Claughton", entries[0].Term)
+		assert.Equal(t, "ˈklɒftən", entries[0].GetIpa())
+		assert.Equal(t, "Karandish", entries[1].Term)
+		assert.Equal(t, "kəˈrɒndɪʃ", entries[1].GetIpa())
+	})
+
+	t.Run("empty term key", func(t *testing.T) {
+		dict := map[string]string{"": "ˈklɒftən"}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 1)
+		assert.Equal(t, "", entries[0].Term)
+		assert.Equal(t, "ˈklɒftən", entries[0].GetIpa())
+	})
+
+	t.Run("empty ipa value", func(t *testing.T) {
+		dict := map[string]string{"Claughton": ""}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 1)
+		assert.Equal(t, "Claughton", entries[0].Term)
+		assert.Equal(t, "", entries[0].GetIpa())
+	})
+}

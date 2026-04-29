@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"verbio_speech_center/log"
 	ttsv1 "verbio_speech_center/proto/speechcenter/tts"
 
@@ -24,12 +25,34 @@ func (s *Synthesizer) getStreamingClient() error {
 	return nil
 }
 
-func (s *Synthesizer) sendConfig(voice string, samplingRate ttsv1.VoiceSamplingRate) error {
+func buildPronunciationEntries(dict map[string]string) []*ttsv1.PronunciationEntry {
+	if len(dict) == 0 {
+		return nil
+	}
+	terms := make([]string, 0, len(dict))
+	for t := range dict {
+		terms = append(terms, t)
+	}
+	sort.Strings(terms)
+	entries := make([]*ttsv1.PronunciationEntry, 0, len(terms))
+	for _, term := range terms {
+		entries = append(entries, &ttsv1.PronunciationEntry{
+			Term: term,
+			PronunciationFormat: &ttsv1.PronunciationEntry_Ipa{
+				Ipa: dict[term],
+			},
+		})
+	}
+	return entries
+}
+
+func (s *Synthesizer) sendConfig(voice string, samplingRate ttsv1.VoiceSamplingRate, pronunciationDict map[string]string) error {
 	config := &ttsv1.StreamingSynthesisRequest{
 		SynthesisRequest: &ttsv1.StreamingSynthesisRequest_Config{
 			Config: &ttsv1.SynthesisConfig{
-				Voice:        voice,
-				SamplingRate: samplingRate,
+				Voice:                   voice,
+				SamplingRate:            samplingRate,
+				PronunciationDictionary: buildPronunciationEntries(pronunciationDict),
 			},
 		},
 	}
@@ -112,8 +135,8 @@ func (s *Synthesizer) collectAudioChunks(c chan audioResult) chan audioResult {
 	return c
 }
 
-func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, samplingRate ttsv1.VoiceSamplingRate, format ttsv1.AudioFormat, outputFile string) error {
-	log.Logger.Infof("Streaming synthesis [text=%s] [voice=%s] [samplingRate=%v] [format=%v] [outputFile=%s]", text, voice, samplingRate, format, outputFile)
+func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, samplingRate ttsv1.VoiceSamplingRate, format ttsv1.AudioFormat, outputFile string, pronunciationDict map[string]string) error {
+	log.Logger.Infof("Streaming synthesis [text=%s] [voice=%s] [samplingRate=%v] [format=%v] [outputFile=%s] [pronunciationEntries=%d]", text, voice, samplingRate, format, outputFile, len(pronunciationDict)) // len(nil map) == 0 in Go
 
 	if text == "" {
 		return errors.New("text cannot be empty")
@@ -134,7 +157,7 @@ func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, sampl
 		c = s.collectAudioChunks(c)
 	}()
 
-	if err := s.sendConfig(voice, samplingRate); err != nil {
+	if err := s.sendConfig(voice, samplingRate, pronunciationDict); err != nil {
 		return err
 	}
 

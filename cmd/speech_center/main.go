@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"verbio_speech_center"
 	"verbio_speech_center/constants"
 	"verbio_speech_center/log"
@@ -33,11 +35,12 @@ type RecognizeOpts struct {
 }
 
 type SynthesizeOpts struct {
-	Text         string `short:"s" long:"text" description:"Text to synthesize" required:"true"`
-	Voice        string `short:"v" long:"voice" description:"Voice code to use for synthesis" required:"true"`
-	SamplingRate string `long:"sampling-rate" description:"Sampling rate for synthesis (8khz or 16khz)" default:"16khz"`
-	Format       string `long:"format" description:"Audio format for synthesis (wav or raw)" default:"wav"`
-	Output       string `short:"o" long:"output" description:"Output file for synthesized audio" required:"true"`
+	Text          string `short:"s" long:"text" description:"Text to synthesize" required:"true"`
+	Voice         string `short:"v" long:"voice" description:"Voice code to use for synthesis" required:"true"`
+	SamplingRate  string `long:"sampling-rate" description:"Sampling rate for synthesis (8khz or 16khz)" default:"16khz"`
+	Format        string `long:"format" description:"Audio format for synthesis (wav or raw)" default:"wav"`
+	Output        string `short:"o" long:"output" description:"Output file for synthesized audio" required:"true"`
+	Pronunciation string `short:"p" long:"pronunciation" description:"Pronunciation dictionary as JSON string or path to JSON file (e.g. '{\"word\": \"IPA\"}')"`
 }
 
 type RecognizeCommand struct {
@@ -103,6 +106,27 @@ func parseFormat(format string) (ttsv1.AudioFormat, error) {
 	}
 }
 
+func parsePronunciationDict(raw string) (map[string]string, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var dict map[string]string
+	if json.Valid([]byte(raw)) {
+		if err := json.Unmarshal([]byte(raw), &dict); err != nil {
+			return nil, fmt.Errorf("pronunciation: invalid JSON: %w", err)
+		}
+		return dict, nil
+	}
+	data, err := os.ReadFile(raw)
+	if err != nil {
+		return nil, fmt.Errorf("pronunciation: cannot read file %q: %w", raw, err)
+	}
+	if err := json.Unmarshal(data, &dict); err != nil {
+		return nil, fmt.Errorf("pronunciation file %q contains invalid JSON: %w", raw, err)
+	}
+	return dict, nil
+}
+
 func parseSamplingRate(rate string) (ttsv1.VoiceSamplingRate, error) {
 	switch rate {
 	case "8khz", "8kHz", "8":
@@ -116,10 +140,10 @@ func parseSamplingRate(rate string) (ttsv1.VoiceSamplingRate, error) {
 
 func (s *SynthesizeCommand) Execute() error {
 	synthesizer, err := verbio_speech_center.NewSynthesizer(s.url, s.tokenFile)
-	log.Logger.Infof("Created synthesizer")
 	if err != nil {
-		log.Logger.Fatalf("Error creating synthesizer: %+v", err)
+		return fmt.Errorf("error creating synthesizer: %w", err)
 	}
+	log.Logger.Infof("Created synthesizer")
 	defer func() {
 		if err := synthesizer.Close(); err != nil {
 			log.Logger.Errorf("Error closing synthesizer: %+v", err)
@@ -128,17 +152,21 @@ func (s *SynthesizeCommand) Execute() error {
 
 	samplingRate, err := parseSamplingRate(s.cmd.SamplingRate)
 	if err != nil {
-		log.Logger.Fatalf("%v", err)
+		return err
 	}
 
 	format, err := parseFormat(s.cmd.Format)
 	if err != nil {
-		log.Logger.Fatalf("%v", err)
+		return err
 	}
 
-	err = synthesizer.StreamingSynthesizeSpeech(s.cmd.Text, s.cmd.Voice, samplingRate, format, s.cmd.Output)
+	pronunciationDict, err := parsePronunciationDict(s.cmd.Pronunciation)
 	if err != nil {
-		log.Logger.Fatalf("Error in synthesis: %+v", err)
+		return err
+	}
+
+	if err = synthesizer.StreamingSynthesizeSpeech(s.cmd.Text, s.cmd.Voice, samplingRate, format, s.cmd.Output, pronunciationDict); err != nil {
+		return fmt.Errorf("error in synthesis: %w", err)
 	}
 
 	log.Logger.Infof("Successfully synthesized speech to %s", s.cmd.Output)
