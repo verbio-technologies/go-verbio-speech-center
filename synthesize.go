@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"verbio_speech_center/log"
 	ttsv1 "verbio_speech_center/proto/speechcenter/tts"
 
@@ -28,12 +29,17 @@ func buildPronunciationEntries(dict map[string]string) []*ttsv1.PronunciationEnt
 	if len(dict) == 0 {
 		return nil
 	}
-	entries := make([]*ttsv1.PronunciationEntry, 0, len(dict))
-	for term, ipa := range dict {
+	terms := make([]string, 0, len(dict))
+	for t := range dict {
+		terms = append(terms, t)
+	}
+	sort.Strings(terms)
+	entries := make([]*ttsv1.PronunciationEntry, 0, len(terms))
+	for _, term := range terms {
 		entries = append(entries, &ttsv1.PronunciationEntry{
 			Term: term,
 			PronunciationFormat: &ttsv1.PronunciationEntry_Ipa{
-				Ipa: ipa,
+				Ipa: dict[term],
 			},
 		})
 	}
@@ -130,7 +136,7 @@ func (s *Synthesizer) collectAudioChunks(c chan audioResult) chan audioResult {
 }
 
 func (s *Synthesizer) StreamingSynthesizeSpeech(text string, voice string, samplingRate ttsv1.VoiceSamplingRate, format ttsv1.AudioFormat, outputFile string, pronunciationDict map[string]string) error {
-	log.Logger.Infof("Streaming synthesis [text=%s] [voice=%s] [samplingRate=%v] [format=%v] [outputFile=%s] [pronunciationEntries=%d]", text, voice, samplingRate, format, outputFile, len(pronunciationDict))
+	log.Logger.Infof("Streaming synthesis [text=%s] [voice=%s] [samplingRate=%v] [format=%v] [outputFile=%s] [pronunciationEntries=%d]", text, voice, samplingRate, format, outputFile, len(pronunciationDict)) // len(nil map) == 0 in Go
 
 	if text == "" {
 		return errors.New("text cannot be empty")

@@ -111,12 +111,15 @@ func parsePronunciationDict(raw string) (map[string]string, error) {
 		return nil, nil
 	}
 	var dict map[string]string
-	if err := json.Unmarshal([]byte(raw), &dict); err == nil {
+	if json.Valid([]byte(raw)) {
+		if err := json.Unmarshal([]byte(raw), &dict); err != nil {
+			return nil, fmt.Errorf("pronunciation: invalid JSON: %w", err)
+		}
 		return dict, nil
 	}
 	data, err := os.ReadFile(raw)
 	if err != nil {
-		return nil, fmt.Errorf("pronunciation: not valid JSON and cannot read file %q: %w", raw, err)
+		return nil, fmt.Errorf("pronunciation: cannot read file %q: %w", raw, err)
 	}
 	if err := json.Unmarshal(data, &dict); err != nil {
 		return nil, fmt.Errorf("pronunciation file %q contains invalid JSON: %w", raw, err)
@@ -137,10 +140,10 @@ func parseSamplingRate(rate string) (ttsv1.VoiceSamplingRate, error) {
 
 func (s *SynthesizeCommand) Execute() error {
 	synthesizer, err := verbio_speech_center.NewSynthesizer(s.url, s.tokenFile)
-	log.Logger.Infof("Created synthesizer")
 	if err != nil {
-		log.Logger.Fatalf("Error creating synthesizer: %+v", err)
+		return fmt.Errorf("error creating synthesizer: %w", err)
 	}
+	log.Logger.Infof("Created synthesizer")
 	defer func() {
 		if err := synthesizer.Close(); err != nil {
 			log.Logger.Errorf("Error closing synthesizer: %+v", err)
@@ -149,22 +152,21 @@ func (s *SynthesizeCommand) Execute() error {
 
 	samplingRate, err := parseSamplingRate(s.cmd.SamplingRate)
 	if err != nil {
-		log.Logger.Fatalf("%v", err)
+		return err
 	}
 
 	format, err := parseFormat(s.cmd.Format)
 	if err != nil {
-		log.Logger.Fatalf("%v", err)
+		return err
 	}
 
 	pronunciationDict, err := parsePronunciationDict(s.cmd.Pronunciation)
 	if err != nil {
-		log.Logger.Fatalf("%v", err)
+		return err
 	}
 
-	err = synthesizer.StreamingSynthesizeSpeech(s.cmd.Text, s.cmd.Voice, samplingRate, format, s.cmd.Output, pronunciationDict)
-	if err != nil {
-		log.Logger.Fatalf("Error in synthesis: %+v", err)
+	if err = synthesizer.StreamingSynthesizeSpeech(s.cmd.Text, s.cmd.Voice, samplingRate, format, s.cmd.Output, pronunciationDict); err != nil {
+		return fmt.Errorf("error in synthesis: %w", err)
 	}
 
 	log.Logger.Infof("Successfully synthesized speech to %s", s.cmd.Output)

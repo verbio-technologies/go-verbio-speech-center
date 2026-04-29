@@ -14,4 +14,4 @@ plugins:
     opt: paths=source_relative
 inputs:
   - git_repo: https://github.com/verbio-technologies/public-grpc-protos.git
-    branch: feature/SC2-3480_pronunciation_support
+    branch: main

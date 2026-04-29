@@ -128,11 +128,25 @@ func TestBuildPronunciationEntries(t *testing.T) {
 		}
 		entries := buildPronunciationEntries(dict)
 		assert.Len(t, entries, 2)
-		found := make(map[string]string)
-		for _, e := range entries {
-			found[e.Term] = e.GetIpa()
-		}
-		assert.Equal(t, "ˈklɒftən", found["Claughton"])
-		assert.Equal(t, "kəˈrɒndɪʃ", found["Karandish"])
+		assert.Equal(t, "Claughton", entries[0].Term)
+		assert.Equal(t, "ˈklɒftən", entries[0].GetIpa())
+		assert.Equal(t, "Karandish", entries[1].Term)
+		assert.Equal(t, "kəˈrɒndɪʃ", entries[1].GetIpa())
+	})
+
+	t.Run("empty term key", func(t *testing.T) {
+		dict := map[string]string{"": "ˈklɒftən"}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 1)
+		assert.Equal(t, "", entries[0].Term)
+		assert.Equal(t, "ˈklɒftən", entries[0].GetIpa())
+	})
+
+	t.Run("empty ipa value", func(t *testing.T) {
+		dict := map[string]string{"Claughton": ""}
+		entries := buildPronunciationEntries(dict)
+		assert.Len(t, entries, 1)
+		assert.Equal(t, "Claughton", entries[0].Term)
+		assert.Equal(t, "", entries[0].GetIpa())
 	})
 }
